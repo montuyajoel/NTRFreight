@@ -28,7 +28,7 @@ SERVICE_TYPES = {
 def load_sheets(file_path: str) -> dict[str, pd.DataFrame]:
     ntr_raw = pd.ExcelFile(file_path)
     sheets={}
-
+    # Loop blocks to get country and 
     for name in ntr_raw.sheet_names:
         df = pd.read_excel(file_path, sheet_name=name, header=None, dtype=str, engine="openpyxl")
         sheets[name] = df
@@ -66,12 +66,16 @@ def get_countries(sheet_name):
 
 # Export data to xlsx file
 def write_output(path_out: str, regions_df: pd.DataFrame, tariffs_df: pd.DataFrame, surcharges_df: pd.DataFrame) -> None:
+    # Use openpyxl engine to export file
     with pd.ExcelWriter(path_out, engine="openpyxl") as w:
+        # Create different sheets as required
         regions_df.to_excel(w, sheet_name="Regions", index=False)
         tariffs_df.to_excel(w, sheet_name="Tariffs", index=False)
         surcharges_df.to_excel(w, sheet_name="Surcharges", index=False)
-        
+
+# Format Dataframe to specified output format
 def generate_regions(countries):
+    # Create new objects with the require format
     region_objects = [
         Region(
             id=row.RegionID,
@@ -80,6 +84,7 @@ def generate_regions(countries):
             carrier=CARRIER,
             country=row.Code
         )
+        # Loop through all records
         for row in countries.itertuples(index=False)
     ]
 

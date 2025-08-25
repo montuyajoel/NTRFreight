@@ -23,3 +23,19 @@ class Region:
             self.seaport or "",
             self.identifier_string or "",
         )
+    
+@dataclass
+class TariffRow:
+    id: int
+    start_date: Optional[str]
+    end_date: Optional[str]
+    client: str
+    carrier: str
+    route: Any  
+    currency: Optional[str]
+    service_type: Optional[str]
+    ldm_conversion: Optional[float] = None
+    cbm_conversion: Optional[float] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    # dynamic band columns appended later
