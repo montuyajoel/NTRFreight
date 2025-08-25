@@ -1,5 +1,6 @@
 from utils.packages import install_packages
 from utils.arg_parser import get_args
+from utils.classes import Region
 
 # Install dependencies first
 install_packages()
@@ -10,6 +11,16 @@ filenames=get_args()
 # Import packages
 import pandas as pd
 import re
+
+#Declare constants
+CLIENT = "Intellyse bePro"          
+CARRIER = "NTR Freight"  
+MATCHING_STRATEGY = "zip_prefix_match"           
+SERVICE_TYPES = {
+    "Switzerland Export/Import — Express Worldwide",
+    "Domestic Express Third Country",
+    "Switzerland Export — Economy Select",
+}
 
 #------------------------------ 
 # Data Extraction per sheet
@@ -26,7 +37,7 @@ def load_sheets(file_path: str) -> dict[str, pd.DataFrame]:
 # Get Countries, Zone Number and Country Code
 def get_countries(sheet_name):
     # Load Data
-    df=load_sheets(f'./{filenames.input_file}')[sheet_name][3::] # removes 3 rows
+    df=load_sheets(f'./{filenames.input_file}')[sheet_name][3::] # removes top 3 rows
     countries=[]
 
     # Loop through each block
@@ -43,10 +54,38 @@ def get_countries(sheet_name):
 
     # Remove code from country names
     df["Country"] = df["Country"].str.replace(r"\s*\(.*?\)", "", regex=True)
-    
+
+    # Drop rows with null values
+    df = df.dropna(subset=['Code'])
+
+    # Sort Values by Country
     df = df.sort_values(by=["Country"]).reset_index(drop=True)
     df.insert(0, "RegionID", range(1, len(df) + 1))
-   
-    print(df)
 
-get_countries('ZH Zones TDI Exp+Imp')
+    return df
+
+# Export data to xlsx file
+def write_output(path_out: str, regions_df: pd.DataFrame, tariffs_df: pd.DataFrame, surcharges_df: pd.DataFrame) -> None:
+    with pd.ExcelWriter(path_out, engine="openpyxl") as w:
+        regions_df.to_excel(w, sheet_name="Regions", index=False)
+        tariffs_df.to_excel(w, sheet_name="Tariffs", index=False)
+        surcharges_df.to_excel(w, sheet_name="Surcharges", index=False)
+        
+def generate_regions(countries):
+    region_objects = [
+        Region(
+            id=row.RegionID,
+            matching_strategy=MATCHING_STRATEGY,
+            client=CLIENT,
+            carrier=CARRIER,
+            country=row.Code
+        )
+        for row in countries.itertuples(index=False)
+    ]
+
+    # Convert dataclass objects back into DataFrame
+    regions_class_df = pd.DataFrame([r.__dict__ for r in region_objects])
+    return regions_class_df
+
+regions_df = generate_regions(get_countries('ZH Zones TDI Exp+Imp'))
+write_output(filenames.output_file, regions_df, regions_df, regions_df)
