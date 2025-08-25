@@ -1,6 +1,6 @@
 from utils.packages import install_packages
 from utils.arg_parser import get_args
-from utils.classes import Region
+from utils.classes import Region, TariffRow
 
 # Install dependencies first
 install_packages()
@@ -10,6 +10,7 @@ filenames=get_args()
 
 # Import packages
 import pandas as pd
+from dataclasses import fields
 import re
 
 #Declare constants
@@ -73,8 +74,11 @@ def write_output(path_out: str, regions_df: pd.DataFrame, tariffs_df: pd.DataFra
         tariffs_df.to_excel(w, sheet_name="Tariffs", index=False)
         surcharges_df.to_excel(w, sheet_name="Surcharges", index=False)
 
+#------------------------------ 
+# Formatting
+#------------------------------
 # Format Dataframe to specified output format
-def generate_regions(countries):
+def generate_regions(countries: pd.DataFrame) -> pd.DataFrame:
     # Create new objects with the require format
     region_objects = [
         Region(
@@ -92,5 +96,32 @@ def generate_regions(countries):
     regions_class_df = pd.DataFrame([r.__dict__ for r in region_objects])
     return regions_class_df
 
+
+def generate_tariffs(countries: pd.DataFrame) -> pd.DataFrame:
+    # Use TrarrifRow Schema
+    tariff_columns = [f.name for f in fields(TariffRow)]
+
+    if countries.empty:
+        # Return empty DataFrame with TariffRow schema
+        return pd.DataFrame(columns=tariff_columns)
+    else:
+        tariff_objects = [
+            TariffRow(
+                id=row.RegionID,
+                start_date=None,
+                end_date=None,
+                client=CLIENT,
+                carrier=CARRIER,
+                route=row.Code,   # ← or Region object, depending on your design
+                currency=None,
+                service_type=None,
+            )
+            for row in countries.itertuples(index=False)
+        ]
+
+    # Convert dataclass objects to DataFrame
+    return pd.DataFrame([t.__dict__ for t in tariff_objects], columns=tariff_columns)
+
 regions_df = generate_regions(get_countries('ZH Zones TDI Exp+Imp'))
-write_output(filenames.output_file, regions_df, regions_df, regions_df)
+tarrifs_df = generate_tariffs(get_countries('ZH Zones TDI Exp+Imp'))
+write_output(filenames.output_file, regions_df, tarrifs_df, regions_df)
